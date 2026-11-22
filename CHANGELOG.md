@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (2026-11-23)
+
+- build: 位级可复现打包（stage chmod + tar --mode 归一、size_bytes 收敛），二进制改嵌 manifest.json，消除同版本 sha 漂移
+
 ## 0.2.0 (2026-11-23)
 
 - feat: `file.upload` / `file.download`——base64 传输、原子落盘、sha256 回执；同名冲突 `E_CONFLICT`、`overwrite=true` 覆盖并继承权限位；下载超限提示“文件过大，请用目录打包下载”

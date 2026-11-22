@@ -1,7 +1,7 @@
 {
   "id": "file",
   "name": "文件管理插件",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "protocol": "kore.plugin.v1",
   "lifecycle": "lazy",
   "depth_level": "production",
@@ -13,5 +13,5 @@
   "depends_on": [],
   "conflicts": [],
   "scenario_tags": ["ops", "data"],
-  "size_bytes": 1535590
+  "size_bytes": 1535589
 }
