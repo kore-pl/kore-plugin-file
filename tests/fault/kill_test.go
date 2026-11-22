@@ -14,6 +14,7 @@ func TestKillFault(t *testing.T) {
 
 // TestKillFaultContract 单独验证 kill 故障的错误体结构完整（真实调用，非空壳）。
 func TestKillFaultContract(t *testing.T) {
-	_, perr := fileop.Call("file.read", json.RawMessage(`{"path":"docs/a.txt"}`), testRoot, faultExecutor{kind: fileop.FaultKill})
+	root := prepareRoot(t)
+	_, perr := fileop.Call("file.read", json.RawMessage(`{"path":"docs/a.txt"}`), root, faultExecutor{kind: fileop.FaultKill})
 	verifyErrorContract(t, perr)
 }

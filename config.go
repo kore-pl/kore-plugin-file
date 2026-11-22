@@ -59,7 +59,7 @@ func loadConfig() (config, error) {
 		cfg.id = m.ID
 	}
 	if cfg.root == "" {
-		cfg.root = "/var/lib/kore/file"
+		cfg.root = "/tmp/kore-file-root"
 	}
 	if cfg.socket == "" {
 		return config{}, fmt.Errorf("缺少环境变量 KORE_PLUGIN_SOCK")

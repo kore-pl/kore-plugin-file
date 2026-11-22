@@ -1,11 +1,27 @@
-// Package fileop 实现 file 插件的方法面：参数校验、路径约束与结构化结果。
-// 本包只做逻辑校验与执行面调用，不直接读写宿主文件（骨架口径）。
+// Package fileop 实现 file 插件的方法面：真实文件操作、路径约束与结构化结果。
+//
+// 安全基线：路径先做词法校验（filepath.Clean + filepath.Rel），再在解析符号链接后
+// 做一次根目录归属校验；执行面只接收通过校验的绝对路径，结果只回相对路径，
+// 不把宿主绝对路径暴露给调用方。
 package fileop
 
-import "fmt"
+import (
+	"fmt"
+	"io/fs"
+	"time"
+)
 
-// maxContent 是骨架口径下 file.write 接受的最大内容长度。
-const maxContent = 1 << 20
+const (
+	// DefaultReadLimit 是 file.read 未指定 max_bytes 时的默认读取上限：1 MiB。
+	DefaultReadLimit int64 = 1 << 20
+	// MaxReadBytes 是 file.read 的硬上限：显式 max_bytes 最大可调到 8 MiB。
+	MaxReadBytes int64 = 8 << 20
+	// MaxWriteBytes 是 file.write 单次内容上限：8 MiB。
+	MaxWriteBytes = 8 << 20
+	// DefaultDirMode 与 DefaultFileMode 是新建目录 / 文件的缺省权限。
+	DefaultDirMode  = fs.FileMode(0o755)
+	DefaultFileMode = fs.FileMode(0o644)
+)
 
 // FaultKind 标识一次故障注入的类别。
 type FaultKind string
@@ -32,52 +48,73 @@ func NewFaultError(kind FaultKind, message string) *FaultError {
 	return &FaultError{Kind: kind, Message: message}
 }
 
-// Entry 是文件列表中的一项逻辑条目。
+// ErrKind 是执行面业务错误的语义类别，classify 将其映射为协议错误码。
+type ErrKind string
+
+const (
+	ErrInvalid     ErrKind = "invalid"
+	ErrNotFound    ErrKind = "notfound"
+	ErrConflict    ErrKind = "conflict"
+	ErrInternal    ErrKind = "internal"
+	ErrUnsupported ErrKind = "unsupported"
+)
+
+// OpError 是执行面返回的可分类业务错误；Message 不得包含宿主绝对路径。
+type OpError struct {
+	Kind    ErrKind
+	Message string
+}
+
+// Error 实现 error 接口。
+func (e *OpError) Error() string { return string(e.Kind) + ": " + e.Message }
+
+// newOpError 构造 OpError。
+func newOpError(kind ErrKind, message string) *OpError {
+	return &OpError{Kind: kind, Message: message}
+}
+
+// Entry 是目录列表中的一项（字段为文件系统原始类型，编码时再格式化）。
 type Entry struct {
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Kind      string `json:"kind"`
-	SizeBytes int64  `json:"size_bytes"`
+	Name      string
+	IsDir     bool
+	Size      int64
+	Mode      fs.FileMode
+	ModTime   time.Time
+	IsSymlink bool
 }
 
-// Executor 是文件操作的执行面；骨架实现为 noop，测试可注入故障执行器。
+// ReadData 是 file.read 执行面返回的原始结果。
+type ReadData struct {
+	Content   []byte
+	Size      int64
+	Truncated bool
+	Binary    bool
+}
+
+// WriteData 是 file.write 执行面返回的写后元信息。
+type WriteData struct {
+	Size    int64
+	ModTime time.Time
+	Created bool
+}
+
+// StatData 是 file.stat 执行面返回的详细元信息。
+type StatData struct {
+	Size      int64
+	Mode      fs.FileMode
+	ModTime   time.Time
+	IsDir     bool
+	IsSymlink bool
+	UID       uint32
+	GID       uint32
+}
+
+// Executor 是文件操作的执行面；nil 时使用真实文件系统实现。
 type Executor interface {
-	List(root, rel string) ([]Entry, error)
-	Read(root, rel string) (string, error)
-	Write(root, rel, content string) (bool, error)
-}
-
-// listParams / readParams / writeParams 是三个方法的显式入参形状。
-type listParams struct {
-	Path string `json:"path"`
-}
-
-type readParams struct {
-	Path string `json:"path"`
-}
-
-type writeParams struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
-
-// ListResult / ReadResult / WriteResult 是三个方法的结构化结果。
-type ListResult struct {
-	Root    string  `json:"root"`
-	Entries []Entry `json:"entries"`
-	Count   int     `json:"count"`
-}
-
-type ReadResult struct {
-	Path      string `json:"path"`
-	Content   string `json:"content"`
-	SizeBytes int    `json:"size_bytes"`
-	Encoding  string `json:"encoding"`
-}
-
-type WriteResult struct {
-	Path         string `json:"path"`
-	BytesWritten int    `json:"bytes_written"`
-	Created      bool   `json:"created"`
-	Applied      bool   `json:"applied"`
+	List(abs string) ([]Entry, error)
+	Read(abs string, limit int64) (ReadData, error)
+	Write(abs string, content string, createIfMissing bool) (WriteData, error)
+	Delete(abs string, recursive bool) error
+	Mkdir(abs string, mode fs.FileMode) error
+	Stat(abs string) (StatData, error)
 }

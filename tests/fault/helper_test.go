@@ -1,35 +1,48 @@
 // Package fault 对 file 插件做四类故障注入，验证方法级错误返回。
-// 每个用例向 fileop.Call 的执行面注入一种故障，断言三方法返回的结构化错误码。
+// 每个用例向 fileop.Call 的执行面注入一种故障，断言方法返回的结构化错误码。
 package fault
 
 import (
 	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/pengtang1024/kore-plugin-file/internal/fileop"
 	"github.com/pengtang1024/kore/pkg/pluginapi"
 )
 
-const testRoot = "/var/lib/kore/file"
-
 // faultExecutor 按注入类别让每个方法都失败，模拟四类运行时故障。
 type faultExecutor struct {
 	kind fileop.FaultKind
 }
 
-func (f faultExecutor) List(root, rel string) ([]fileop.Entry, error) {
+func (f faultExecutor) List(string) ([]fileop.Entry, error) {
 	return nil, fileop.NewFaultError(f.kind, "list 执行面故障")
 }
 
-func (f faultExecutor) Read(root, rel string) (string, error) {
-	return "", fileop.NewFaultError(f.kind, "read 执行面故障")
+func (f faultExecutor) Read(string, int64) (fileop.ReadData, error) {
+	return fileop.ReadData{}, fileop.NewFaultError(f.kind, "read 执行面故障")
 }
 
-func (f faultExecutor) Write(root, rel, content string) (bool, error) {
-	return false, fileop.NewFaultError(f.kind, "write 执行面故障")
+func (f faultExecutor) Write(string, string, bool) (fileop.WriteData, error) {
+	return fileop.WriteData{}, fileop.NewFaultError(f.kind, "write 执行面故障")
 }
 
-// methods 是三类故障注入覆盖的方法及其合法参数。
+func (f faultExecutor) Delete(string, bool) error {
+	return fileop.NewFaultError(f.kind, "delete 执行面故障")
+}
+
+func (f faultExecutor) Mkdir(string, fs.FileMode) error {
+	return fileop.NewFaultError(f.kind, "mkdir 执行面故障")
+}
+
+func (f faultExecutor) Stat(string) (fileop.StatData, error) {
+	return fileop.StatData{}, fileop.NewFaultError(f.kind, "stat 执行面故障")
+}
+
+// methods 是故障注入覆盖的方法及其合法参数。
 var methods = []struct {
 	name   string
 	method string
@@ -40,13 +53,27 @@ var methods = []struct {
 	{"write", "file.write", `{"path":"docs/a.txt","content":"hello"}`},
 }
 
+// prepareRoot 造一个真实临时根：路径解析必须通过，故障只能来自注入的执行面。
+func prepareRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatalf("造 docs 目录失败: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "a.txt"), []byte("seed"), 0o644); err != nil {
+		t.Fatalf("造种子文件失败: %v", err)
+	}
+	return root
+}
+
 // assertFault 对每个方法注入故障，断言返回 nil 结果 + 预期的协议错误码与类别关键词。
 func assertFault(t *testing.T, kind fileop.FaultKind, wantCode, wantHint string) {
 	t.Helper()
+	root := prepareRoot(t)
 	exec := faultExecutor{kind: kind}
 	for _, m := range methods {
 		t.Run(m.name, func(t *testing.T) {
-			result, perr := fileop.Call(m.method, json.RawMessage(m.params), testRoot, exec)
+			result, perr := fileop.Call(m.method, json.RawMessage(m.params), root, exec)
 			if perr == nil {
 				t.Fatalf("%s 注入 %s 后未返回错误（结果=%s）", m.method, kind, result)
 			}
@@ -79,8 +106,9 @@ func contains(s, sub string) bool {
 // sanityNoFault 验证无故障时三方法正常返回，证明故障断言不是"永远失败"的假通过。
 func sanityNoFault(t *testing.T) {
 	t.Helper()
+	root := prepareRoot(t)
 	for _, m := range methods {
-		result, perr := fileop.Call(m.method, json.RawMessage(m.params), testRoot, nil)
+		result, perr := fileop.Call(m.method, json.RawMessage(m.params), root, nil)
 		if perr != nil {
 			t.Fatalf("无故障时 %s 意外返回错误: %v", m.method, perr)
 		}

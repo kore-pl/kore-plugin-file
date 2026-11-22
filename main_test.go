@@ -13,13 +13,14 @@ import (
 )
 
 // testConfig 构造握手与会话循环共用的一致配置（不依赖环境变量）。
-func testConfig() config {
+// root 由调用方给临时目录，保证真实文件操作有可写的受控根。
+func testConfig(root string) config {
 	return config{
 		id:           "file",
 		version:      "0.1.0",
 		requiresKore: ">=0.1.0 <0.2.0",
-		capabilities: []string{"system:read"},
-		root:         "/var/lib/kore/file",
+		capabilities: []string{"system:read", "system:admin"},
+		root:         root,
 		startedAt:    time.Now(),
 	}
 }
@@ -65,7 +66,8 @@ func TestHandshake(t *testing.T) {
 	pluginConn, kernelConn := net.Pipe()
 	defer func() { _ = kernelConn.Close() }()
 	done := make(chan error, 1)
-	go func() { done <- handshake(pluginConn, testConfig()); _ = pluginConn.Close() }()
+	cfg := testConfig(t.TempDir())
+	go func() { done <- handshake(pluginConn, cfg); _ = pluginConn.Close() }()
 
 	request := readRequest(t, kernelConn)
 	if request.Method != helloMethod {
@@ -99,7 +101,8 @@ func TestServeShutdown(t *testing.T) {
 	pluginConn, kernelConn := net.Pipe()
 	defer func() { _ = kernelConn.Close() }()
 	done := make(chan error, 1)
-	go func() { done <- serve(pluginConn, testConfig(), testLogger()); _ = pluginConn.Close() }()
+	cfg := testConfig(t.TempDir())
+	go func() { done <- serve(pluginConn, cfg, testLogger()); _ = pluginConn.Close() }()
 
 	request := &pluginapi.Request{
 		Type: pluginapi.TypeRequest, ID: "id-1", ReqID: "r-1", Method: "kore.shutdown",

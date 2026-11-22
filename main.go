@@ -1,7 +1,7 @@
-// Package main 是 kore 的 file 插件：文件管理的方法面骨架。
+// Package main 是 kore 的 file 插件：受根目录约束的真实文件管理器。
 //
-// file 只做协议握手 + 参数校验 + 结构化结果，不真读写宿主文件、
-// 不内置 unzip/tar/chmod 等任何工具二进制（裁决37 / 提案 §2.1 批1）。
+// file 做协议握手 + 参数校验 + 真实文件读写（list/read/write/delete/mkdir/stat），
+// 全部操作限制在 KORE_FILE_ROOT 之下，不内置 unzip/tar/chmod 等工具二进制（裁决37）。
 //
 // 协议面（kore.plugin.v1）：UDS → kore.hello 握手 → 会话循环读 request、
 // 按 method 分发并回 response；stdout 留给协议，日志一律写 stderr。

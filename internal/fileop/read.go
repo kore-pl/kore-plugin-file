@@ -2,37 +2,38 @@ package fileop
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/pengtang1024/kore/pkg/pluginapi"
 )
 
-// callRead 处理 file.read：校验 path 后返回文本内容（骨架口径不真读宿主文件）。
+// callRead 处理 file.read：默认上限 1 MiB，显式 max_bytes 可调到 8 MiB；
+// 超限直接拒绝并提示用 file.stat，二进制（含 NUL）只回元信息不回 content。
 func callRead(raw json.RawMessage, root string, exec Executor) (json.RawMessage, *pluginapi.Error) {
 	var p readParams
 	if perr := decodeParams(raw, &p); perr != nil {
 		return nil, perr
 	}
-	abs, perr := ValidatePath(root, p.Path)
+	limit, perr := effectiveReadLimit(p.MaxBytes)
 	if perr != nil {
 		return nil, perr
 	}
-	content, err := exec.Read(root, abs)
+	abs, perr := ResolveExisting(root, p.Path)
+	if perr != nil {
+		return nil, perr
+	}
+	data, err := exec.Read(abs, limit)
 	if err != nil {
 		return nil, classify(err)
 	}
-	return encode(ReadResult{
-		Path:      strings.TrimPrefix(abs, root+"/"),
-		Content:   content,
-		SizeBytes: len(content),
-		Encoding:  "utf-8",
-	})
-}
-
-// checkContent 校验 file.write 的 content 字段。
-func checkContent(content string) *pluginapi.Error {
-	if len(content) > maxContent {
-		return invalid("content 超过 1 MiB 上限")
+	result := ReadResult{
+		Path:      displayPath(p.Path),
+		Size:      data.Size,
+		Truncated: data.Truncated,
+		IsBinary:  data.Binary,
 	}
-	return nil
+	if !data.Binary {
+		content := string(data.Content)
+		result.Content = &content
+	}
+	return encode(result)
 }
