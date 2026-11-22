@@ -13,5 +13,5 @@
   "depends_on": [],
   "conflicts": [],
   "scenario_tags": ["ops", "data"],
-  "size_bytes": 0
+  "size_bytes": 1535590
 }
