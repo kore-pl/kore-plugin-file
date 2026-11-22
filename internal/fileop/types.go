@@ -117,4 +117,12 @@ type Executor interface {
 	Delete(abs string, recursive bool) error
 	Mkdir(abs string, mode fs.FileMode) error
 	Stat(abs string) (StatData, error)
+	// L2 执行面：传输、归档、权限与移动。Extract 额外携带 root/dest，
+	// 以便逐条目复用 ResolveTarget 做穿越与符号链接逃逸校验。
+	Upload(abs string, data []byte, overwrite bool) (UploadData, error)
+	Download(abs string, limit int64) (DownloadData, error)
+	Extract(req ExtractRequest) (ExtractData, error)
+	Compress(sources []CompressSource, archiveAbs string, format string) (CompressData, error)
+	Chmod(abs string, mode fs.FileMode, recursive bool) (ChmodData, error)
+	Move(absSrc, absDst string, overwrite bool) (MoveData, error)
 }

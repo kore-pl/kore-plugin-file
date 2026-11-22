@@ -42,7 +42,31 @@ func (f faultExecutor) Stat(string) (fileop.StatData, error) {
 	return fileop.StatData{}, fileop.NewFaultError(f.kind, "stat 执行面故障")
 }
 
-// methods 是故障注入覆盖的方法及其合法参数。
+func (f faultExecutor) Upload(string, []byte, bool) (fileop.UploadData, error) {
+	return fileop.UploadData{}, fileop.NewFaultError(f.kind, "upload 执行面故障")
+}
+
+func (f faultExecutor) Download(string, int64) (fileop.DownloadData, error) {
+	return fileop.DownloadData{}, fileop.NewFaultError(f.kind, "download 执行面故障")
+}
+
+func (f faultExecutor) Extract(fileop.ExtractRequest) (fileop.ExtractData, error) {
+	return fileop.ExtractData{}, fileop.NewFaultError(f.kind, "extract 执行面故障")
+}
+
+func (f faultExecutor) Compress([]fileop.CompressSource, string, string) (fileop.CompressData, error) {
+	return fileop.CompressData{}, fileop.NewFaultError(f.kind, "compress 执行面故障")
+}
+
+func (f faultExecutor) Chmod(string, fs.FileMode, bool) (fileop.ChmodData, error) {
+	return fileop.ChmodData{}, fileop.NewFaultError(f.kind, "chmod 执行面故障")
+}
+
+func (f faultExecutor) Move(string, string, bool) (fileop.MoveData, error) {
+	return fileop.MoveData{}, fileop.NewFaultError(f.kind, "move 执行面故障")
+}
+
+// methods 是故障注入覆盖的方法及其合法参数；顺序保证 sanityNoFault 的真实执行自洽。
 var methods = []struct {
 	name   string
 	method string
@@ -51,6 +75,11 @@ var methods = []struct {
 	{"list", "file.list", `{"path":"docs"}`},
 	{"read", "file.read", `{"path":"docs/a.txt"}`},
 	{"write", "file.write", `{"path":"docs/a.txt","content":"hello"}`},
+	{"upload", "file.upload", `{"path":"docs","filename":"up.txt","data_base64":"aGVsbG8="}`},
+	{"download", "file.download", `{"path":"docs/a.txt"}`},
+	{"compress", "file.compress", `{"paths":["docs"],"archive_path":"out.zip"}`},
+	{"chmod", "file.chmod", `{"path":"docs/a.txt","mode":"0600"}`},
+	{"move", "file.move", `{"src":"docs/a.txt","dst":"docs/b.txt"}`},
 }
 
 // prepareRoot 造一个真实临时根：路径解析必须通过，故障只能来自注入的执行面。

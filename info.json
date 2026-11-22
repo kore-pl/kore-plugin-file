@@ -1,7 +1,7 @@
 {
   "id": "file",
   "name": "文件管理插件",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "protocol": "kore.plugin.v1",
   "lifecycle": "lazy",
   "depth_level": "production",

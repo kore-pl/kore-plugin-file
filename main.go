@@ -1,6 +1,7 @@
 // Package main 是 kore 的 file 插件：受根目录约束的真实文件管理器。
 //
-// file 做协议握手 + 参数校验 + 真实文件读写（list/read/write/delete/mkdir/stat），
+// file 做协议握手 + 参数校验 + 真实文件操作（L2 共 12 个方法）：
+// list/read/write/delete/mkdir/stat + upload/download/extract/compress/chmod/move。
 // 全部操作限制在 KORE_FILE_ROOT 之下，不内置 unzip/tar/chmod 等工具二进制（裁决37）。
 //
 // 协议面（kore.plugin.v1）：UDS → kore.hello 握手 → 会话循环读 request、

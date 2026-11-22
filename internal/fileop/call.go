@@ -2,6 +2,7 @@ package fileop
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pengtang1024/kore/pkg/pluginapi"
 )
@@ -29,19 +30,35 @@ func Call(method string, params json.RawMessage, root string, exec Executor) (js
 		return callMkdir(params, root, exec)
 	case "stat":
 		return callStat(params, root, exec)
+	case "upload":
+		return callUpload(params, root, exec)
+	case "download":
+		return callDownload(params, root, exec)
+	case "extract":
+		return callExtract(params, root, exec)
+	case "compress":
+		return callCompress(params, root, exec)
+	case "chmod":
+		return callChmod(params, root, exec)
+	case "move":
+		return callMove(params, root, exec)
 	}
 	return nil, errNotFound(method)
 }
 
 // businessVerb 把 file.<verb> 或裸 <verb> 归一为动词名。
+// 裸名是历史兼容面，只保留最初的六个方法；L2 新方法必须写全 file.<verb>。
 func businessVerb(method string) (string, bool) {
 	verb := method
-	if len(method) > len("file.") && method[:len("file.")] == "file." {
+	namespaced := strings.HasPrefix(method, "file.")
+	if namespaced {
 		verb = method[len("file."):]
 	}
 	switch verb {
 	case "list", "read", "write", "delete", "mkdir", "stat":
 		return verb, true
+	case "upload", "download", "extract", "compress", "chmod", "move":
+		return verb, namespaced
 	}
 	return "", false
 }
