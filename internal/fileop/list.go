@@ -24,6 +24,10 @@ func callList(raw json.RawMessage, root string, exec Executor) (json.RawMessage,
 	display := displayPath(p.Path)
 	out := make([]ListEntry, 0, len(entries))
 	for _, e := range entries {
+		// 回收站是插件内部存储：只在根目录层隐藏，普通方法也无法访问它。
+		if display == "." && e.Name == TrashDirName {
+			continue
+		}
 		out = append(out, ListEntry{
 			Name:      e.Name,
 			Path:      entryPath(display, e.Name),

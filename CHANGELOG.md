@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0 (2026-11-23)
+
+**破坏性语义变更（必读）**：`file.delete` 默认不再直接删除，改为移入配置根内的回收站 `<root>/.trash/`。
+
+- **变更**：`file.delete` 缺省把目标移入回收站并返回 `trash_id`；结果新增 `permanent` 字段
+- **兼容**：显式传 `permanent=true` 走旧语义（直接删除，不回收到站，结果 `permanent=true` 且无 `trash_id`）；`path` / `deleted` 字段保持不变，忽略新字段的旧调用方不会报错
+- **迁移**：依赖「删完立即释放磁盘」的调用方改为 `permanent=true`，或定期 `file.trash.purge {"all":true}`；被删除对象在 `purge` 前仍占用磁盘
+- **不变**：非空目录仍需 `recursive=true`、根目录禁止删除、符号链接只删链接本身、路径穿越与链接逃逸一律拒绝
+
+新增方法：
+
+- feat: `file.rename`——同目录改名（`path` + 单段 `name`），与 `file.move` 分工明确：rename 不能换目录，`name` 拒绝 `/`、`\`、`..` 与保留名 `.trash`；冲突策略与 move 一致（`overwrite`）
+- feat: `file.copy`——文件 / 目录递归 / 符号链接复制，保留权限位、链接按原目标重建；覆盖策略显式（同类型覆盖、非空目录不合并、类型不符 `E_CONFLICT`）；临时项 + rename 落位，失败不留半副本；特殊文件 `E_UNSUPPORTED`
+- feat: `file.search`——文件名 glob 必选，`content` 可选（名称命中后再做内容过滤）；内容搜索只读常规文件且 ≤ `max_file_bytes`（默认 1 MiB / 上限 8 MiB），含 NUL 的二进制、超体积、符号链接与特殊文件计入 `skipped`，不把大文件读进内存；`max_results` 默认 200 / 上限 1000，单次遍历上限 20 万条，命中或遍历上限触发 `truncated`
+- feat: 回收站三方法——`file.trash.list`（按时间倒序、损坏条目计入 `skipped`）、`file.trash.restore`（按原相对路径恢复，父目录必须仍存在且仍在根内，恢复目标冲突需 `overwrite`）、`file.trash.purge`（`id` 或 `all=true`，不可恢复，空参数直接拒绝）
+- feat: `file.batch`——批量 `delete` / `move` / `copy`，最多 200 条；**部分失败逐项返回**（`ok` + `error{code,message}`，`succeeded`/`failed` 汇总），单条失败不影响其余，只有结构性错误才整体失败
+- feat: 方法级 `method_capabilities`（§3.5 #12）——6 个只读方法 `system:read`、13 个写/管理方法 `system:admin`，与分发表逐条一致；新增 CI 断言镜像内核 `registry/validate.go` 的键格式 / 值域 / 条数校验
+
+安全：
+
+- feat: 保留路径 `.trash` 统一拦截——`ValidatePath` 拒绝对回收站首段的任何普通方法访问（list/read/write/delete/mkdir/stat/upload/download/extract/compress/chmod/move/rename/copy/search/batch），根目录列表与搜索结果不展示它
+- feat: 回收站根目录自身校验——必须是配置根真实路径内的真实目录；被替换为符号链接或同名文件时拒绝（否则删除会把文件搬到根外）
+- feat: 回收站 id 限定 `^[0-9]{19}-[0-9a-f]{8}$`，恢复路径复用 `resolveDestination`（父目录存在 + 根内），meta 损坏按 `E_INTERNAL` 报错、列表只计入 `skipped`
+
+测试与构建：
+
+- test: 新增 rename / copy / search / 回收站 / 批量 / L3 安全（穿越 + 符号链接逃逸 + `.trash` 保留 + 恶意 meta）用例；故障注入扩到 15 方法，并单独覆盖 batch 逐项错误与 trash.restore / trash.purge 的四类故障映射；e2e 增加 L3 全链路
+- docs: README 补 19 方法契约、rename vs move、copy 覆盖策略、search 边界、回收站语义变更与迁移指引、批量部分失败语义
+- build: 版本 0.3.0（新增 7 个方法 → minor），`info.json` / `manifest.json` 同步
+
 ## 0.2.1 (2026-11-23)
 
 - build: 位级可复现打包（stage chmod + tar --mode 归一、size_bytes 收敛），二进制改嵌 manifest.json，消除同版本 sha 漂移

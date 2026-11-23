@@ -42,12 +42,26 @@ func Call(method string, params json.RawMessage, root string, exec Executor) (js
 		return callChmod(params, root, exec)
 	case "move":
 		return callMove(params, root, exec)
+	case "rename":
+		return callRename(params, root, exec)
+	case "copy":
+		return callCopy(params, root, exec)
+	case "search":
+		return callSearch(params, root, exec)
+	case "trash.list":
+		return callTrashList(params, root, exec)
+	case "trash.restore":
+		return callTrashRestore(params, root, exec)
+	case "trash.purge":
+		return callTrashPurge(params, root, exec)
+	case "batch":
+		return callBatch(params, root, exec)
 	}
 	return nil, errNotFound(method)
 }
 
 // businessVerb 把 file.<verb> 或裸 <verb> 归一为动词名。
-// 裸名是历史兼容面，只保留最初的六个方法；L2 新方法必须写全 file.<verb>。
+// 裸名是历史兼容面，只保留最初的六个方法；L2 / L3 新方法必须写全 file.<verb>。
 func businessVerb(method string) (string, bool) {
 	verb := method
 	namespaced := strings.HasPrefix(method, "file.")
@@ -57,7 +71,8 @@ func businessVerb(method string) (string, bool) {
 	switch verb {
 	case "list", "read", "write", "delete", "mkdir", "stat":
 		return verb, true
-	case "upload", "download", "extract", "compress", "chmod", "move":
+	case "upload", "download", "extract", "compress", "chmod", "move",
+		"rename", "copy", "search", "trash.list", "trash.restore", "trash.purge", "batch":
 		return verb, namespaced
 	}
 	return "", false

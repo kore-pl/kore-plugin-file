@@ -22,6 +22,8 @@ type writeParams struct {
 type deleteParams struct {
 	Path      string `json:"path"`
 	Recursive bool   `json:"recursive"`
+	// Permanent 为 true 时直接删除（旧语义）；缺省 false 表示移入回收站。
+	Permanent bool `json:"permanent"`
 }
 
 type mkdirParams struct {
@@ -69,10 +71,12 @@ type WriteResult struct {
 	Created bool   `json:"created"`
 }
 
-// DeleteResult 是 file.delete 的结果。
+// DeleteResult 是 file.delete 的结果；permanent=false 时 trash_id 指向回收站条目。
 type DeleteResult struct {
-	Path    string `json:"path"`
-	Deleted bool   `json:"deleted"`
+	Path      string `json:"path"`
+	Deleted   bool   `json:"deleted"`
+	Permanent bool   `json:"permanent"`
+	TrashID   string `json:"trash_id,omitempty"`
 }
 
 // MkdirResult 是 file.mkdir 的结果。

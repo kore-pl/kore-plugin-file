@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // ValidatePath 把用户路径限制在配置根目录内，返回归一化后的绝对路径。
-// 拒绝：空路径、NUL、反斜杠、绝对路径、".." 段、以及 Clean + Rel 后越出根目录。
+// 拒绝：空路径、NUL、反斜杠、绝对路径、".." 段、保留的回收站目录、以及 Clean + Rel 后越出根目录。
 // 只做词法校验，不访问文件系统；符号链接逃逸由 Resolve* 二次校验兜住。
 func ValidatePath(root, raw string) (string, *pluginapi.Error) {
 	if raw == "" {
@@ -31,6 +32,9 @@ func ValidatePath(root, raw string) (string, *pluginapi.Error) {
 			return "", invalid("路径含 .. 段，禁止穿越")
 		}
 	}
+	if isTrashPath(raw) {
+		return "", invalid("回收站目录 " + TrashDirName + " 仅通过 file.trash.* 方法访问")
+	}
 	rootClean := filepath.Clean(root)
 	if rootClean == "" || !filepath.IsAbs(rootClean) {
 		return "", internalErr("配置根目录无效")
@@ -41,6 +45,19 @@ func ValidatePath(root, raw string) (string, *pluginapi.Error) {
 		return "", invalid("路径越出配置根目录")
 	}
 	return joined, nil
+}
+
+// isTrashPath 判定路径的首段是否命中保留的回收站目录（已经在前面排除 ".." 段）。
+func isTrashPath(raw string) bool {
+	cleaned := path.Clean(raw)
+	if cleaned == "." {
+		return false
+	}
+	first := cleaned
+	if index := strings.Index(cleaned, "/"); index >= 0 {
+		first = cleaned[:index]
+	}
+	return first == TrashDirName
 }
 
 // evalRoot 解析配置根目录的真实路径（跟随根自身的符号链接）。

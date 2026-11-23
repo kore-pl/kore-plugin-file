@@ -23,6 +23,34 @@ const (
 	DefaultFileMode = fs.FileMode(0o644)
 )
 
+const (
+	// TrashDirName 是配置根内的保留目录名：删除默认移入 <root>/.trash。
+	// 该目录只能通过 file.trash.* 访问，普通方法一律拒绝（ValidatePath 统一拦截）。
+	TrashDirName = ".trash"
+	// trashEntriesDirName 是回收站条目目录：<root>/.trash/entries/<id>/。
+	trashEntriesDirName = "entries"
+	// trashDataName 是条目目录内被移入对象的固定名字（避免同名目录嵌套歧义）。
+	trashDataName = "data"
+	// trashMetaName 是条目元数据文件名：记录原相对路径、类型、大小与删除时间。
+	trashMetaName = "meta.json"
+	// DefaultTrashListLimit 与 MaxTrashListLimit 是 file.trash.list 的分页口径。
+	DefaultTrashListLimit = 200
+	MaxTrashListLimit     = 1000
+	// MaxBatchItems 是 file.batch 单次最大条目数。
+	MaxBatchItems = 200
+	// DefaultSearchResults 与 MaxSearchResults 是 file.search 的结果条数口径。
+	DefaultSearchResults = 200
+	MaxSearchResults     = 1000
+	// DefaultSearchContentMax 与 MaxSearchContentMax 是内容搜索的单文件读取上限。
+	DefaultSearchContentMax int64 = 1 << 20
+	MaxSearchContentMax     int64 = 8 << 20
+	// MaxSearchPatternBytes 与 MaxSearchNeedleBytes 限制 glob 与内容关键词长度。
+	MaxSearchPatternBytes = 1024
+	MaxSearchNeedleBytes  = 1024
+	// maxSearchScanEntries 是单次搜索最多遍历的条目数，防止超大目录把调用拖死。
+	maxSearchScanEntries = 200000
+)
+
 // FaultKind 标识一次故障注入的类别。
 type FaultKind string
 
@@ -125,4 +153,14 @@ type Executor interface {
 	Compress(sources []CompressSource, archiveAbs string, format string) (CompressData, error)
 	Chmod(abs string, mode fs.FileMode, recursive bool) (ChmodData, error)
 	Move(absSrc, absDst string, overwrite bool) (MoveData, error)
+	// L3 执行面：搜索、复制与回收站。rename 复用 Move（同目录改名）。
+	// 回收站方法只接收已由调用面校验过的 trashBase 与绝对路径，
+	// 原相对路径仅用于元数据回显，不再参与路径解析。
+	Search(req SearchRequest) (SearchData, error)
+	Copy(absSrc, absDst string, overwrite bool) (CopyData, error)
+	TrashPut(trashBase, absSrc, originalRel string, recursive bool) (TrashEntry, error)
+	TrashGet(trashBase, id string) (TrashEntry, error)
+	TrashList(trashBase string, limit int) (TrashListing, error)
+	TrashRestore(trashBase, id, absDst string, overwrite bool) (TrashEntry, error)
+	TrashPurge(trashBase, id string, all bool) (int, error)
 }
