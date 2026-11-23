@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 (2026-11-23)
+
+新增断点续传分块上传（**非破坏性**，既有 `file.upload` 不变）：
+
+- **新增**：`file.uploadChunk`（admin）`{path, offset, data_base64, total_size?}` → `{path, received, total_size?, complete, replayed}`；按 `offset` 追加写入，单块上限沿用 `MaxInlineTransferBytes`（≈5.95 MiB）
+- **新增**：`file.uploadStatus`（read）`{path}` → `{path, received, exists}`；客户端据此计算续传 offset，断线后从已收字节继续
+- **重复 offset 语义（测试锁死）**：`offset == 已收字节` 为追加；`offset < 已收字节` 且重叠区字节一致视为重传——完全落在已收范围内返回 `replayed=true`（幂等，丢 ACK 不写坏文件），跨越端点只补追加未收部分；重叠区不一致或 `offset > 已收字节`（跳空）回 `E_CONFLICT`，提示先查 `file.uploadStatus`
+- **安全**：路径复用 `ResolveTarget`（拒绝 `..` / 绝对路径 / 反斜杠 / 回收站目录 / 符号链接逃逸），路径穿越用例与两个新方法同测；`total_size` 越界直接 `E_INVALID`
+- **不变**：`capabilities` / `triggers` / `requires_kore` / `lifecycle` 不变；`id@version` 换 sha 故 patch bump
+
 ## 0.3.0 (2026-11-23)
 
 **破坏性语义变更（必读）**：`file.delete` 默认不再直接删除，改为移入配置根内的回收站 `<root>/.trash/`。

@@ -1,12 +1,15 @@
 {
   "id": "file",
   "name": "文件管理插件",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "protocol": "kore.plugin.v1",
   "lifecycle": "lazy",
   "depth_level": "production",
   "entry": "bin/file",
-  "capabilities": ["system:read", "system:admin"],
+  "capabilities": [
+    "system:read",
+    "system:admin"
+  ],
   "method_capabilities": {
     "file.list": "system:read",
     "file.read": "system:read",
@@ -26,13 +29,22 @@
     "file.extract": "system:admin",
     "file.trash.restore": "system:admin",
     "file.trash.purge": "system:admin",
-    "file.batch": "system:admin"
+    "file.batch": "system:admin",
+    "file.uploadChunk": "system:admin",
+    "file.uploadStatus": "system:read"
   },
   "triggers": [],
   "requires_kore": ">=0.1.0 <0.2.0",
-  "resources": {"memory_mb": 8, "cpu_quota": "15%", "pids_max": 16},
+  "resources": {
+    "memory_mb": 8,
+    "cpu_quota": "15%",
+    "pids_max": 16
+  },
   "depends_on": [],
   "conflicts": [],
-  "scenario_tags": ["ops", "data"],
-  "size_bytes": 1662070
+  "scenario_tags": [
+    "ops",
+    "data"
+  ],
+  "size_bytes": 1689618
 }

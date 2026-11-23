@@ -25,6 +25,8 @@
 | `file.rename` | admin | `{path, name, overwrite?}` | `from` / `to` / `renamed` / `method`；**只能改名不能换目录**，`name` 必须是单段文件名 |
 | `file.copy` | admin | `{src, dst, overwrite?}` | `from` / `to` / `copied` / `kind` / `entries` / `bytes`；目录递归、链接按原目标重建 |
 | `file.upload` | admin | `{path, filename, data_base64, overwrite?}` | `path` / `filename` / `size` / `sha256` / `created`；原子替换并继承已有权限位 |
+| `file.uploadChunk` | admin | `{path, offset, data_base64, total_size?}` | `path` / `received` / `total_size?` / `complete` / `replayed`；**断点续传**，重复 offset 幂等（见「传输上限」） |
+| `file.uploadStatus` | read | `{path}` | `path` / `received` / `exists`；供客户端续传决策 |
 | `file.compress` | admin | `{paths[], archive_path, format?}` | `archive_path` / `size_bytes` / `entries` / `format`（`zip` 缺省，或 `tar.gz`）；递归目录、保留相对路径、不跟随符号链接 |
 | `file.extract` | admin | `{archive_path, dest_dir, overwrite?}` | `extracted` / `skipped[]` / `bytes` / `format`；支持 zip / tar / tar.gz / tgz；先整包校验后落盘 |
 | `file.trash.restore` | admin | `{id, overwrite?}` | `id` / `path` / `restored`；按原相对路径恢复，父目录必须仍存在且仍在根内 |
@@ -72,7 +74,7 @@
 - 上传提示单帧上限、base64 膨胀、方法契约上限，并说明**大文件分片上传在 L3 提供**
 - 下载提示“文件过大，请用目录打包下载”，并说明分片下载在 L3 提供
 
-不把 32 MiB 写成“现在就能走通”的假口径；分片协议落地前，真实上限就是单帧可承载量。
+不把 32 MiB 写成“现在就能走通”的假口径；真实上限就是单帧可承载量。**大文件走 `file.uploadChunk` 分块**：`file.uploadStatus` 查已收字节 → 从 `received` 继续发下一块；重复 `offset` 若重叠区字节一致按幂等重传处理（`replayed=true`），否则 `E_CONFLICT`，不静默覆盖。
 
 ## 归档安全：解压防穿越（对照 backup 的六层）
 

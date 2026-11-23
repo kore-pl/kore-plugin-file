@@ -32,6 +32,10 @@ func Call(method string, params json.RawMessage, root string, exec Executor) (js
 		return callStat(params, root, exec)
 	case "upload":
 		return callUpload(params, root, exec)
+	case "uploadChunk":
+		return callUploadChunk(params, root)
+	case "uploadStatus":
+		return callUploadStatus(params, root)
 	case "download":
 		return callDownload(params, root, exec)
 	case "extract":
@@ -71,7 +75,7 @@ func businessVerb(method string) (string, bool) {
 	switch verb {
 	case "list", "read", "write", "delete", "mkdir", "stat":
 		return verb, true
-	case "upload", "download", "extract", "compress", "chmod", "move",
+	case "upload", "uploadChunk", "uploadStatus", "download", "extract", "compress", "chmod", "move",
 		"rename", "copy", "search", "trash.list", "trash.restore", "trash.purge", "batch":
 		return verb, namespaced
 	}
