@@ -26,7 +26,7 @@
 
 测试与构建：
 
-- test: 新增 rename / copy / search / 回收站 / 批量 / L3 安全（穿越 + 符号链接逃逸 + `.trash` 保留 + 恶意 meta）用例；故障注入扩到 15 方法，并单独覆盖 batch 逐项错误与 trash.restore / trash.purge 的四类故障映射；e2e 增加 L3 全链路
+- test: 新增 rename / copy / search / 回收站 / 批量 / L3 安全（穿越 + 符号链接逃逸 + `.trash` 保留 + 恶意 meta）用例；故障注入扩到 16 个方法（13 个矩阵方法 + batch 逐项错误 + trash.restore / trash.purge 的四类故障映射）；e2e 增加 L3 全链路
 - docs: README 补 19 方法契约、rename vs move、copy 覆盖策略、search 边界、回收站语义变更与迁移指引、批量部分失败语义
 - build: 版本 0.3.0（新增 7 个方法 → minor），`info.json` / `manifest.json` 同步
 

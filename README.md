@@ -129,7 +129,7 @@ gofmt -l . && go vet ./... && go test -timeout 200s ./...
 ```
 
 - `internal/fileop/*_test.go`：既有 12 方法的正常 / 边界 / 安全用例，新增 rename（成功、目录、冲突/覆盖、路径语义拒绝、链接逃逸）、copy（文件/目录/链接、覆盖策略、自身子树、链接逃逸）、search（名/内容两态、体积上限与二进制跳过、结果截断、回收站跳过、参数校验）、回收站（删→列→恢复→内容一致、目录树往返、恢复冲突、purge 不可恢复、损坏 meta）、批量（部分失败、回收站 id、move/copy、结构性错误）、方法级能力声明与内核校验镜像
-- `tests/fault/`：kill -9、超时、磁盘满、cgroup 超限四类注入，覆盖 15 个方法（含 search / copy / rename / delete / trash.list），并单独验证 batch 逐项错误与 trash.restore / trash.purge
+- `tests/fault/`：kill -9、超时、磁盘满、cgroup 超限四类注入，13 个方法的注入矩阵（含 search / copy / rename / delete / trash.list），并对 batch 逐项错误与 trash.restore / trash.purge 单独覆盖（合计 16 个方法）
 - `tests/e2e/`：用当前源码构建插件二进制，走真实 UDS 握手；L2 链路（压缩→解压→`diff -r`→上传/下载 sha256→chmod→move→恶意 zip 拒绝）+ L3 链路（rename→copy→内容 search→删进回收站→列表→恢复→批量部分失败→purge→穿越与 `.trash` 拒绝）
 
 ## 四类故障注入
