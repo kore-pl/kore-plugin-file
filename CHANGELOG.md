@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2 (2026-11-23)
+
+新增在线编辑的按字节范围读写（**非破坏性**）：
+
+- **新增**：`file.readRange`（read）`{path, offset?, limit?}` → `{path, offset, size, returned, truncated, data_base64}`；默认窗口 256 KiB，单次上限 `MaxInlineTransferBytes`（≈5.95 MiB），大文件不整读
+- **新增**：`file.writeRange`（admin）`{path, offset, data_base64, expected_sha256?}` → `{path, offset, written, size, sha256}`；覆盖写不截断（`offset == size` 为追加），返回写后整文件 sha256 供下一次乐观锁
+- **并发语义（测试锁死）**：同一路径的读/写在本进程内按 path 互斥串行；跨客户端用 `expected_sha256` 乐观锁（整文件写前摘要），不匹配回 `E_CONFLICT` 且**不落盘**；`offset` 超过当前大小视为跳空，同样 `E_CONFLICT`（不自动补零，避免把编辑错误写成静默损坏）
+- **安全**：路径复用 `ResolveExisting`（拒绝 `..` / 绝对路径 / 反斜杠 / 回收站目录 / 符号链接逃逸），路径穿越用例与两个新方法同测
+- **不变**：`capabilities` / `triggers` / `requires_kore` / `lifecycle` 不变；`id@version` 换 sha 故 patch bump
+
 ## 0.3.1 (2026-11-23)
 
 新增断点续传分块上传（**非破坏性**，既有 `file.upload` 不变）：

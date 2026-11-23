@@ -27,7 +27,7 @@ type infoManifest struct {
 	MethodCapabilities map[string]string `json:"method_capabilities"`
 }
 
-// TestMethodCapabilitiesDeclared 方法级能力必须覆盖全部 21 个业务方法，且只读/写分类正确。
+// TestMethodCapabilitiesDeclared 方法级能力必须覆盖全部 23 个业务方法，且只读/写分类正确。
 // 这条测试是 info.json 与 call.go 分发表之间的防漂移门禁（§3.5 #12）。
 func TestMethodCapabilitiesDeclared(t *testing.T) {
 	payload, err := os.ReadFile(filepath.Join("..", "..", "info.json"))
@@ -41,10 +41,10 @@ func TestMethodCapabilitiesDeclared(t *testing.T) {
 	if manifest.ID != "file" {
 		t.Fatalf("info.json.id=%q，期望 file", manifest.ID)
 	}
-	readOnly := []string{"list", "read", "stat", "download", "search", "trash.list", "uploadStatus"}
+	readOnly := []string{"list", "read", "stat", "download", "search", "trash.list", "uploadStatus", "readRange"}
 	writeOps := []string{
 		"write", "delete", "mkdir", "chmod", "move", "rename", "copy",
-		"upload", "uploadChunk", "compress", "extract", "trash.restore", "trash.purge", "batch",
+		"upload", "uploadChunk", "writeRange", "compress", "extract", "trash.restore", "trash.purge", "batch",
 	}
 	if want := len(readOnly) + len(writeOps); len(manifest.MethodCapabilities) != want {
 		t.Fatalf("method_capabilities 条数=%d，期望 %d", len(manifest.MethodCapabilities), want)

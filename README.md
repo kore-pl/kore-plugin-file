@@ -27,6 +27,8 @@
 | `file.upload` | admin | `{path, filename, data_base64, overwrite?}` | `path` / `filename` / `size` / `sha256` / `created`；原子替换并继承已有权限位 |
 | `file.uploadChunk` | admin | `{path, offset, data_base64, total_size?}` | `path` / `received` / `total_size?` / `complete` / `replayed`；**断点续传**，重复 offset 幂等（见「传输上限」） |
 | `file.uploadStatus` | read | `{path}` | `path` / `received` / `exists`；供客户端续传决策 |
+| `file.readRange` | read | `{path, offset?, limit?}` | `path` / `offset` / `size` / `returned` / `truncated` / `data_base64`；默认 256 KiB，单次 ≤≈5.95 MiB，供在线编辑器分页加载 |
+| `file.writeRange` | admin | `{path, offset, data_base64, expected_sha256?}` | `path` / `offset` / `written` / `size` / `sha256`；覆盖写不截断，`expected_sha256` 乐观锁防并发覆盖 |
 | `file.compress` | admin | `{paths[], archive_path, format?}` | `archive_path` / `size_bytes` / `entries` / `format`（`zip` 缺省，或 `tar.gz`）；递归目录、保留相对路径、不跟随符号链接 |
 | `file.extract` | admin | `{archive_path, dest_dir, overwrite?}` | `extracted` / `skipped[]` / `bytes` / `format`；支持 zip / tar / tar.gz / tgz；先整包校验后落盘 |
 | `file.trash.restore` | admin | `{id, overwrite?}` | `id` / `path` / `restored`；按原相对路径恢复，父目录必须仍存在且仍在根内 |
