@@ -7,10 +7,19 @@ import (
 	"path/filepath"
 )
 
-// renamePath 是移动的落点；测试可替换它模拟跨文件系统失败（EXDEV）。
+// renamePath 是覆盖语义（overwrite=true）的落点；测试可替换它模拟跨文件系统失败（EXDEV）。
 var renamePath = os.Rename
 
-// Move 先尝试 rename（原子、同文件系统），EXDEV 时回退「复制到临时项 + rename + 删除源」。
+// renameNoReplacePath 是「目标不存在才改名」的原子落点：overwrite=false 的并发竞争
+// 全部在这里收口（Linux 走 renameat2(RENAME_NOREPLACE)，其它平台见 rename_noreplace.go）。
+// 独立成变量是为了让测试能分别注入 EXDEV 与并发窗口，不改变生产路径语义。
+var renameNoReplacePath = renameNoReplace
+
+// Move 先尝试 rename（同文件系统、单次调用），EXDEV 时回退「复制到临时项 + 落名 + 删除源」。
+//
+// 冲突语义：overwrite=false 时不能只靠 checkMoveTarget 的 Lstat 预检——预检与落名之间
+// 目标可能被其它进程/实例创建，os.Rename 会静默覆盖。因此 overwrite=false 的落名改走
+// renameNoReplace（原子、目标存在即 EEXIST），跨设备回退的最终落名同样走它。
 func (realFS) Move(absSrc, absDst string, overwrite bool) (MoveData, error) {
 	srcInfo, err := os.Lstat(absSrc)
 	if err != nil {
@@ -26,17 +35,31 @@ func (realFS) Move(absSrc, absDst string, overwrite bool) (MoveData, error) {
 	if err := checkMoveTarget(absDst, srcInfo, overwrite); err != nil {
 		return MoveData{}, err
 	}
-	err = renamePath(absSrc, absDst)
+	if overwrite {
+		err = renamePath(absSrc, absDst)
+	} else {
+		err = renameNoReplacePath(absSrc, absDst)
+	}
 	if err == nil {
 		return MoveData{Method: "rename"}, nil
 	}
+	err = mapRenameError(err)
 	if !isCrossDevice(err) {
 		return MoveData{}, err
 	}
-	if err := copyAndDelete(absSrc, absDst, srcInfo); err != nil {
-		return MoveData{}, err
+	if err := copyAndDelete(absSrc, absDst, srcInfo, overwrite); err != nil {
+		return MoveData{}, mapRenameError(err)
 	}
 	return MoveData{Method: "copy+delete"}, nil
+}
+
+// mapRenameError 把落名阶段的「目标已存在」统一映射为 E_CONFLICT，
+// 与 checkMoveTarget 的预检消息保持一致（预检只是快路径，原子落名才是判据）。
+func mapRenameError(err error) error {
+	if errors.Is(err, fs.ErrExist) {
+		return newOpError(ErrConflict, "目标已存在，overwrite=true 可覆盖")
+	}
+	return err
 }
 
 // checkMoveTarget 校验目标已存在时的覆盖策略；目录只允许覆盖空目录。
@@ -66,8 +89,9 @@ func checkMoveTarget(absDst string, srcInfo fs.FileInfo, overwrite bool) error {
 	return nil
 }
 
-// copyAndDelete 跨文件系统回退：先复制到目标目录的临时项，成功后替换目标并删除源。
-func copyAndDelete(absSrc, absDst string, srcInfo fs.FileInfo) error {
+// copyAndDelete 跨文件系统回退：先复制到目标目录的临时项，成功后落名并删除源。
+// overwrite=false 时最终落名必须原子且不覆盖（目标可能在复制期间被别的实例创建）。
+func copyAndDelete(absSrc, absDst string, srcInfo fs.FileInfo, overwrite bool) error {
 	dir := filepath.Dir(absDst)
 	var tmpName string
 	var err error
@@ -82,15 +106,21 @@ func copyAndDelete(absSrc, absDst string, srcInfo fs.FileInfo) error {
 	if err != nil {
 		return err
 	}
-	if err := replaceInto(tmpName, absDst); err != nil {
+	if err := replaceInto(tmpName, absDst, overwrite); err != nil {
 		_ = os.RemoveAll(tmpName)
 		return err
 	}
 	return os.RemoveAll(absSrc)
 }
 
-// replaceInto 把临时项落到目标：目标已存在时先删除（前面已校验类型与空目录）。
-func replaceInto(tmpName, absDst string) error {
+// replaceInto 把临时项落到目标：
+//   - overwrite=true：先删除已校验过的目标（文件 / 空目录）再改名，保持旧语义；
+//   - overwrite=false：走 renameNoReplace 原子落名，目标已存在则返回 fs.ErrExist，
+//     由上层映射 E_CONFLICT，绝不覆盖别人刚创建的文件。
+func replaceInto(tmpName, absDst string, overwrite bool) error {
+	if !overwrite {
+		return renameNoReplacePath(tmpName, absDst)
+	}
 	if err := os.Remove(absDst); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}

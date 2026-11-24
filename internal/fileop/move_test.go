@@ -116,6 +116,16 @@ func TestMoveCrossDeviceFallback(t *testing.T) {
 		return &os.LinkError{Op: "rename", Err: syscall.EXDEV}
 	}
 	defer func() { renamePath = original }()
+	// overwrite=false 的主落名走原子路径；这里只对源文件名注入 EXDEV，
+	// 临时项 → 目标的最终落名仍走真实 renameNoReplace（保持「不覆盖」语义）。
+	originalNoReplace := renameNoReplacePath
+	renameNoReplacePath = func(src, dst string) error {
+		if src == filepath.Join(root, "a.txt") {
+			return &os.LinkError{Op: "rename", Err: syscall.EXDEV}
+		}
+		return originalNoReplace(src, dst)
+	}
+	defer func() { renameNoReplacePath = originalNoReplace }()
 	var got MoveResult
 	if perr := mustCall(t, "file.move", `{"src":"a.txt","dst":"b.txt"}`, root, &got); perr != nil {
 		t.Fatalf("跨设备回退失败: %v", perr)

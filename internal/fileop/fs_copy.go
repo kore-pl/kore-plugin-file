@@ -38,9 +38,9 @@ func (realFS) Copy(absSrc, absDst string, overwrite bool) (CopyData, error) {
 	if err != nil {
 		return CopyData{}, err
 	}
-	if err := replaceInto(tmpName, absDst); err != nil {
+	if err := replaceInto(tmpName, absDst, overwrite); err != nil {
 		_ = os.RemoveAll(tmpName)
-		return CopyData{}, err
+		return CopyData{}, mapRenameError(err)
 	}
 	entries, bytes, err := measureCopy(absSrc, srcInfo)
 	if err != nil {

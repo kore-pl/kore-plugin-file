@@ -55,6 +55,10 @@ func mapFSError(err error) *pluginapi.Error {
 	case errors.Is(err, fs.ErrExist):
 		return conflict("目标已存在")
 	case errors.Is(err, fs.ErrPermission):
+		// 保留 E_INTERNAL（不改 E_UNAUTHORIZED）：协议 §9 的 E_UNAUTHORIZED 是 401 鉴权语义
+		// （未登录 / session 失效 / capability 不足 / 签名或来源不符），处置是「重新登录或申请授权」；
+		// 而这里是插件进程对宿主文件系统拿到的 POSIX EACCES，重新登录不会让权限变好。
+		// 协议没有面向 OS 文件权限的专用码，故按「插件执行面失败」归 E_INTERNAL，message 仍写明「权限不足」。
 		return internalErr("权限不足")
 	}
 	var pe *fs.PathError

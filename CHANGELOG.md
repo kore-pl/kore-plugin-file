@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.3 (2026-11-24)
+
+修复 `rename/move/copy` 的 TOCTOU（**安全修复，非破坏性**）：
+
+- **修复（P1，静默覆盖）**：`overwrite=false` 时 `checkMoveTarget` 的 `Lstat` 与 `os.Rename` 之间无原子性，两路并发 rename 到同一目标会**都返回成功**且一方文件被静默覆盖（实测 171/300 轮复现）。`overwrite=false` 的落名改走 `renameat2(RENAME_NOREPLACE)`（Linux 3.15+）：检查与落名压进一次系统调用，并发抢同一目标时内核保证恰好一个成功，其余回 `E_CONFLICT`
+- **修复（同类）**：跨设备回退（`copy+delete`）的最终落名同样走原子路径——复制期间目标被别的实例创建时不再 `Remove+Rename` 覆盖；`file.copy` 复用同一落名函数，同一 TOCTOU 一并收口
+- **降级矩阵（显式，不静默）**：linux/amd64 与 linux/arm64 走 `renameat2`；内核 <3.15、文件系统不支持 `RENAME_NOREPLACE`（返回 `ENOSYS`/`EINVAL`）、以及非 Linux 平台退化为「`Lstat` + `Rename`」，窗口在 `internal/fileop/rename_noreplace.go` 与各平台文件中明确记录。G-16 的 Tier A（linux amd64/arm64）承诺原子，其余架构/平台保留功能但不承诺跨进程原子
+- **测试**：新增 `tests/boundary/rename_conflict_test.go`——100 轮两路并发抢同一目标，断言「恰好一个成功、另一个 `E_CONFLICT`」「失败方不覆盖成功方且源文件原样保留」「无 `.tmp` / `.kore-*` 残留」，并要求 `-race` 通过；修复前该用例 FAIL（两方都成功）
+- **不变**：`E_INTERNAL` 映射 `fs.ErrPermission` 保持（协议 §9 的 `E_UNAUTHORIZED` 是 401 鉴权语义，不适用于 OS EACCES）；`capabilities` / `requires_kore` / `lifecycle` / 方法签名不变；仅换 dist sha 故 patch bump
+
 ## 0.3.2 (2026-11-23)
 
 新增在线编辑的按字节范围读写（**非破坏性**）：
