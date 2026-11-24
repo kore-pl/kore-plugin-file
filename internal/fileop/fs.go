@@ -35,6 +35,7 @@ func (realFS) List(abs string) ([]Entry, error) {
 		if err != nil {
 			continue // 条目在读取期间被删除：跳过，不让整个列表失败
 		}
+		uid, gid := fileOwner(itemInfo)
 		entries = append(entries, Entry{
 			Name:      item.Name(),
 			IsDir:     itemInfo.IsDir(),
@@ -42,6 +43,8 @@ func (realFS) List(abs string) ([]Entry, error) {
 			Mode:      itemInfo.Mode(),
 			ModTime:   itemInfo.ModTime(),
 			IsSymlink: itemInfo.Mode()&fs.ModeSymlink != 0,
+			UID:       uid,
+			GID:       gid,
 		})
 	}
 	return entries, nil

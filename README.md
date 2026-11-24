@@ -11,7 +11,7 @@
 
 | 方法 | 能力 | 入参 | 结果要点 |
 | --- | --- | --- | --- |
-| `file.list` | read | `{path}` | `entries[]`：`name` / `path` / `is_dir` / `size` / `mode` / `mod_time`(RFC3339) / `is_symlink`；根目录不展示保留的 `.trash` |
+| `file.list` | read | `{path}` | `entries[]`：`name` / `path` / `is_dir` / `size` / `mode` / `mod_time`(RFC3339) / `is_symlink` / `uid` / `gid`；根目录不展示保留的 `.trash` |
 | `file.read` | read | `{path, max_bytes?}` | `content`（UTF-8）/ `size` / `truncated` / `is_binary`；含 NUL 判二进制，不回 `content` |
 | `file.stat` | read | `{path}` | `size` / `mode` / `owner{uid,gid}` / `mod_time` / `is_dir` / `is_symlink` |
 | `file.download` | read | `{path}` | `filename` / `size_bytes` / `data_base64`；超限回 `E_INVALID` 并提示“文件过大，请用目录打包下载” |
@@ -58,12 +58,12 @@
 
 ### 回收站语义（0.3.0 的破坏性变更，必须知道）
 
-`file.delete` **默认不再直接删除**：目标被移入 `<KORE_FILE_ROOT>/.trash/entries/<id>/`（`meta.json` 记录原相对路径、类型、大小、删除时间，`data` 是被移入对象），可用 `file.trash.list` 查看、`file.trash.restore` 按原路径恢复、`file.trash.purge` 永久清除。
+`file.delete` **默认不再直接删除**：目标被移入回收站（非 `/` 根为 `<KORE_FILE_ROOT>/.trash/entries/<id>/`；缺省整机根下为可写兜底目录，见下）（`meta.json` 记录原相对路径、类型、大小、删除时间，`data` 是被移入对象），可用 `file.trash.list` 查看、`file.trash.restore` 按原路径恢复、`file.trash.purge` 永久清除。
 
 - **保留旧语义**：显式传 `permanent=true`，行为与 0.2.x 完全一致（直接删除、不进回收站），结果里 `permanent=true` 且没有 `trash_id`；
 - **不变的部分**：非空目录仍需 `recursive=true`（否则 `E_CONFLICT`）、配置根目录仍然禁止删除、符号链接仍然只删链接本身、路径穿越与链接逃逸仍然一律拒绝；
 - **迁移指引**：依赖「删完立即释放磁盘」的调用方请改成 `permanent=true`，或定期 `file.trash.purge {"all":true}`；调用方若忽略新增字段也能继续工作（`path` / `deleted` 仍在）；
-- **回收站位置与保护**：固定为配置根内的 `.trash`（与数据同文件系统，移动是原子 rename）。普通方法一律拒绝访问该目录（`E_INVALID`），根目录列表与搜索结果也不展示它；若 `.trash` 被替换成符号链接或同名文件，删除/列回收站都会 `E_INVALID` 而不是把文件搬出根目录。
+- **回收站位置与保护**：非 `/` 根固定为配置根内的 `.trash`（与数据同文件系统，移动是原子 rename）；缺省整机根 `/` 下低权进程建不出 `/.trash`，改用 `KORE_FILE_TRASH` > `KORE_PLUGIN_DATA/trash` > 用户缓存目录 > 系统临时目录的兜底，删除仍走原子 rename。普通方法一律拒绝访问该目录（`E_INVALID`），根目录列表与搜索结果也不展示它；若 `.trash` 被替换成符号链接或同名文件，删除/列回收站都会 `E_INVALID` 而不是把文件搬出根目录。
 
 ### 批量操作的部分失败语义
 
@@ -100,7 +100,7 @@
 
 ## 路径安全约束
 
-所有路径限制在配置根目录（`KORE_FILE_ROOT`，缺省 `/tmp/kore-file-root`）之内，两层校验 + 一条保留路径：
+所有路径限制在配置根目录（`KORE_FILE_ROOT`，缺省 `/` 整机视图；内核不注入该变量，收窄范围需自行导出，如 `/var/www`）之内，两层校验 + 一条保留路径：
 
 1. **词法校验**：拒绝空路径、绝对路径、`..` 段、反斜杠与 NUL，以及首段命中保留目录 `.trash` 的路径；`filepath.Clean` 后用 `filepath.Rel` 判定仍在根内。
 2. **符号链接二次校验**：`filepath.EvalSymlinks` 解析后再次用 `filepath.Rel` 校验真实路径；写入 / 建目录 / 解压 / 恢复回收站时解析最近已存在祖先，杜绝“父目录是外链”的逃逸。
@@ -150,8 +150,8 @@ gofmt -l . && go vet ./... && go test -timeout 200s ./...
 ```bash
 gofmt -l . && go vet ./... && go test -timeout 200s ./...
 make build && make dist
-tar -tzf dist/file-0.3.3.tar.gz | head -1   # info.json
-sha256sum dist/file-0.3.3.tar.gz             # 再跑一次 make dist 应完全一致
+tar -tzf dist/file-0.3.4.tar.gz | head -1   # info.json
+sha256sum dist/file-0.3.4.tar.gz             # 再跑一次 make dist 应完全一致
 ```
 
 `dist` 使用确定性参数归档（`--sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner` + `gzip -9n`），重复构建 sha256 不变；`size_bytes` 由打包脚本回填，与实际包体偏差 ≤2 字节。
@@ -182,7 +182,7 @@ KORE_PLUGIN_SOCK=/tmp/kore-file-e2e.sock KORE_FILE_ROOT=/tmp/kore-file-e2e-init 
 - **行为准则**：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 - **兼容性**：`protocol: kore.plugin.v1` · `requires_kore: >=0.1.0 <0.2.0` · `lifecycle: lazy` · 深度等级 `production`。
 - **验证方式**：本地 `make check` 优先（CI 只在 push main / tag / PR / 手动跑；发布前 `make dist` 连跑两次核对 sha 一致）。
-- **发布产物**：`make dist` → `dist/file-0.3.3.tar.gz` + `.sha256`（位级可复现，连跑两次 sha 相同）。
+- **发布产物**：`make dist` → `dist/file-0.3.4.tar.gz` + `.sha256`（位级可复现，连跑两次 sha 相同）。
 - **相关仓库**：[索引 kore-plugins](https://github.com/kore-pl/kore-plugins) · [协议文档](https://github.com/kore-pl/kore/blob/main/docs/PLUGIN-PROTOCOL.md) · [SDK 指南](https://github.com/kore-pl/kore/blob/main/docs/PLUGIN-SDK.md)
 
 <!-- oss:end -->

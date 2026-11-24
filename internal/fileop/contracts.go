@@ -44,6 +44,9 @@ type ListEntry struct {
 	Mode      string `json:"mode"`
 	ModTime   string `json:"mod_time"`
 	IsSymlink bool   `json:"is_symlink"`
+	// UID/GID 供文件列表展示属主；非 unix 平台恒为 0。
+	UID uint32 `json:"uid"`
+	GID uint32 `json:"gid"`
 }
 
 // ListResult 是 file.list 的结果。

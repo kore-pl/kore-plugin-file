@@ -36,6 +36,8 @@ func callList(raw json.RawMessage, root string, exec Executor) (json.RawMessage,
 			Mode:      modeString(uint32(e.Mode.Perm())),
 			ModTime:   e.ModTime.Format(time.RFC3339),
 			IsSymlink: e.IsSymlink,
+			UID:       e.UID,
+			GID:       e.GID,
 		})
 	}
 	return encode(ListResult{Path: display, Entries: out, Count: len(out)})

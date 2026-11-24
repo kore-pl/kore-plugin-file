@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.4 (2026-11-24)
+
+修复「文件管理没法管理」的根因（**P0，可用性修复**）：
+
+- **根因**：`KORE_FILE_ROOT` 缺省值为 `/tmp/kore-file-root`，而内核拉起插件时只注入 5 个固定环境变量（`KORE_PLUGIN_ID/SOCK/TOKEN`、`KORE_STATE_DIR`、`KORE_LOG_DIR` 等），**从不注入 `KORE_FILE_ROOT`**；该临时目录在全新机器上不存在，`evalRoot` 直接返回 `E_INTERNAL 配置根目录不可访问`，于是 `file.list` / `file.read` / `file.write` 等全部方法装完即失败，界面只剩错误提示
+- **修复**：缺省根收口为整机 `/`（`internal/fileop/root.go` 的 `ResolveRoot`），装完即可浏览 `/etc`、`/var/log`、`/home` 等真实目录；写边界仍由操作系统权限与内核 `system:admin` 能力兜底，路径穿越 / NUL / 符号链接校验一条未放宽；需要收窄范围时显式设置 `KORE_FILE_ROOT`（如 `/var/www`）
+- **修复（连带）**：整机根下低权进程无法创建 `/.trash`，回收站新增可写兜底 `KORE_FILE_TRASH` > `KORE_PLUGIN_DATA/trash` > 用户缓存目录 > 系统临时目录；非 `/` 根仍固定 `<root>/.trash`，原回收站安全断言（符号链接 / 同名文件 / 越界一律拒绝）不变
+- **新增（列表可用性）**：`file.list` 条目新增 `uid` / `gid` 字段（属主列数据源；非 unix 平台降级为 0）
+- **测试**：新增 `internal/fileop/root_test.go`——缺省根收口、整机根列 `/` 与 `/etc`、条目带 `uid/gid`、整机根删除走兜底回收站并可恢复；既有 TOCTOU 原子落名与边界四类用例断言一条未改
+- **不变**：`capabilities` / `requires_kore` / `lifecycle` / 方法签名不变；仅换 dist sha 故 patch bump
+
 ## 0.3.3 (2026-11-24)
 
 修复 `rename/move/copy` 的 TOCTOU（**安全修复，非破坏性**）：

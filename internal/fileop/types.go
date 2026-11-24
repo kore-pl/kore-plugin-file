@@ -109,6 +109,10 @@ type Entry struct {
 	Mode      fs.FileMode
 	ModTime   time.Time
 	IsSymlink bool
+	// UID/GID 是属主/属组数值：列表页要展示属主，unix 平台由 lstat 取得，
+	// 非 unix 平台降级为 0/0（owner_other.go）。
+	UID uint32
+	GID uint32
 }
 
 // ReadData 是 file.read 执行面返回的原始结果。
