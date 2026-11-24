@@ -47,7 +47,8 @@ func mapOpError(oe *OpError) *pluginapi.Error {
 	}
 }
 
-// mapFSError 按标准库哨兵错误归类，仅保留操作名（如 lstat），不带路径。
+// mapFSError 按标准库哨兵错误归类。消息带 errno/底层 os error 上下文与「怎么办」建议，
+// 但绝不拼接 fs.PathError.Path（宿主绝对路径会泄露目录布局）。
 func mapFSError(err error) *pluginapi.Error {
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
@@ -58,14 +59,38 @@ func mapFSError(err error) *pluginapi.Error {
 		// 保留 E_INTERNAL（不改 E_UNAUTHORIZED）：协议 §9 的 E_UNAUTHORIZED 是 401 鉴权语义
 		// （未登录 / session 失效 / capability 不足 / 签名或来源不符），处置是「重新登录或申请授权」；
 		// 而这里是插件进程对宿主文件系统拿到的 POSIX EACCES，重新登录不会让权限变好。
-		// 协议没有面向 OS 文件权限的专用码，故按「插件执行面失败」归 E_INTERNAL，message 仍写明「权限不足」。
-		return internalErr("权限不足")
+		// 协议没有面向 OS 文件权限的专用码，故按「插件执行面失败」归 E_INTERNAL，message 写明「权限不足」+ errno + 怎么办。
+		return internalErr("权限不足（" + errnoText(err) + "）；请检查文件/目录属主与权限，或以 root 运行")
 	}
 	var pe *fs.PathError
 	if errors.As(err, &pe) {
-		return internalErr("文件系统操作失败: " + pe.Op)
+		return internalErr(fsFailureMessage(pe.Op, pe.Err))
 	}
-	return internalErr("文件系统操作失败")
+	return internalErr(fsFailureMessage("", err))
+}
+
+// errnoText 提取底层 errno 文案，剥掉 fs.PathError 自带的宿主绝对路径，避免泄露目录布局。
+func errnoText(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) && pe.Err != nil {
+		return pe.Err.Error()
+	}
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+// fsFailureMessage 拼出「人话 + errno 上下文 + 怎么办」的文件系统错误，不拼接路径。
+func fsFailureMessage(op string, cause error) string {
+	msg := "文件系统操作失败"
+	if op != "" {
+		msg += "（" + op + "）"
+	}
+	if cause != nil {
+		msg += ": " + cause.Error()
+	}
+	return msg + "；请检查磁盘剩余空间与目标路径的访问权限，必要时以有权限的用户运行"
 }
 
 // invalid 构造参数/策略拒绝错误（含安全校验拒绝）。

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.5 (2026-11-24)
+
+修复 P3 错误消息缺陷（HANDOFF B.6 挂账 #8，披露于 `699db82`）：
+
+- **修复（errno 诊断信息缺）**：`internal/fileop/errors.go` 的 `mapFSError` 原先把 `fs.PathError` 压成「文件系统操作失败: <op>」，把真实 errno（EACCES/EFBIG/ENOSPC 等）丢掉，用户排障只能看到干巴巴一句。现在消息带「人话 + errno 原文 + 怎么办」——权限错误提示检查属主/权限或以 root 运行，文件系统错误提示检查磁盘空间与访问权限
+- **安全**：`errnoText` / `fsFailureMessage` 只取 `pe.Err`（errno），绝不拼 `pe.Path`，避免把宿主绝对路径泄露给调用方
+- **测试**：新增 `internal/fileop/errors_test.go`——EACCES/EFBIG/ENOSPC/非 PathError 四类断言消息含 errno 与「怎么办」关键片段，且不含宿主绝对路径；既有 boundary 断言（「权限不足」「文件系统操作失败」前缀）全部保持通过
+
 ## 0.3.4 (2026-11-24)
 
 修复「文件管理没法管理」的根因（**P0，可用性修复**）：
