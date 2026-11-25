@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Plugin de gestión de archivos",
+    "description": "Ofrece 19 métodos de archivos dentro de una raíz controlada: listar, leer, escritura atómica, borrar (por defecto a papelera), subir/descargar, comprimir/extraer, buscar y operaciones por lote; sin binarios de herramientas externas.",
+    "detail": "docs/DETAIL.es.md"
+  }
+}

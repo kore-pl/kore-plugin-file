@@ -62,3 +62,11 @@
 - 发现漏洞**不要开公开 issue**，按 [SECURITY.md](SECURITY.md) 私下披露。
 - 参与即表示同意 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 - 能力声明与宿主写入面（文件、进程、网络、数据库等）按真实实现写；不得声明未实现的权限，也不得在文档里承诺未实现的能力。
+
+## 8. 分支模型与提交签名
+
+- **长青分支**：`main` 是发布基线，`develop` 是集成基线；本地 `develop` 从 `main` 创建，不主动推送、不修改远端默认分支。
+- **命名规则**：分支名一律 kebab-case，例如 `feature/file-<topic>`、`fix/<topic>`、`release/vX.Y.Z`、`hotfix/vX.Y.Z`。
+- **流向**：`feature/*` 与 `fix/*` 从 `develop` 开出并合回 `develop`；`release/*` 与 `hotfix/*` 以 `--no-ff` 同时合入 `main` 与 `develop`（双向合流）。
+- **禁止**：不 force push、不 rebase 已推送提交、不直推 `main`、不删历史 tag、不改默认分支。
+- **签名约定**：本仓本地 Git 配置 `gpg.format=ssh`、`user.signingkey` 指向 Ed25519 公钥、`tag.gpgSign=true`、`gpg.ssh.allowedSignersFile=.git/allowed_signers`；版本 tag 用 `git tag -s` 签名，`git tag -v` 应显示 `Good "git" signature`。提交沿用 `git commit -s` 的 DCO 签名。

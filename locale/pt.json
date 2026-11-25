@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Plugin de gerenciamento de arquivos",
+    "description": "Oferece 19 métodos de arquivos dentro de uma raiz controlada: listar, ler, gravação atômica, excluir (por padrão para a lixeira), upload/download, compactar/extrair, busca e operações em lote; sem binários de ferramentas externas.",
+    "detail": "docs/DETAIL.pt.md"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Dateiverwaltungs-Plugin",
+    "description": "Bietet 19 Dateimethoden in einem kontrollierten Wurzelverzeichnis: Auflisten, Lesen, atomares Schreiben, Löschen (standardmäßig Papierkorb), Hochladen/Herunterladen, Archivieren/Extrahieren, Suche und Stapeloperationen; keine externen Tool-Binaries enthalten.",
+    "detail": "docs/DETAIL.de.md"
+  }
+}

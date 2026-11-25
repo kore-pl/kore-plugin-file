@@ -1,5 +1,7 @@
 # kore-plugin-file
 
+语言：[简体中文](docs/DETAIL.md) · [English](docs/DETAIL.en.md) · [Español](docs/DETAIL.es.md) · [Français](docs/DETAIL.fr.md) · [Deutsch](docs/DETAIL.de.md) · [Русский](docs/DETAIL.ru.md) · [Português](docs/DETAIL.pt.md)
+
 文件管理插件（**L2+**）：在受控根目录内提供 **19 个真实文件方法**——列表、读取、原子写入、删除（默认进回收站）、建目录、元信息、上传、下载、解压、压缩、改权限、移动、改名、复制、搜索、回收站列出/恢复/清空、批量操作。不内置 unzip/tar/chmod 等工具二进制（裁决 37），归档能力全部走 Go 标准库。
 
 ## 协议面
@@ -186,3 +188,7 @@ KORE_PLUGIN_SOCK=/tmp/kore-file-e2e.sock KORE_FILE_ROOT=/tmp/kore-file-e2e-init 
 - **相关仓库**：[索引 kore-plugins](https://github.com/kore-pl/kore-plugins) · [协议文档](https://github.com/kore-pl/kore/blob/main/docs/PLUGIN-PROTOCOL.md) · [SDK 指南](https://github.com/kore-pl/kore/blob/main/docs/PLUGIN-SDK.md)
 
 <!-- oss:end -->
+
+## 支持本项目
+
+如果这个插件帮你省下了管理服务器文件的功夫，欢迎去 [GitHub 仓库](https://github.com/kore-pl/kore-plugin-file) 点个 star ⭐——你的支持就是我继续更新的动力。

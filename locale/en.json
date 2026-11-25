@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "File Management Plugin",
+    "description": "Provides 19 file methods inside a controlled root: list, read, atomic write, delete (trash by default), upload/download, archive/extract, search and batch operations; no external tool binaries bundled.",
+    "detail": "docs/DETAIL.en.md"
+  }
+}

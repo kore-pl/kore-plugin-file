@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Plugin de gestion de fichiers",
+    "description": "Fournit 19 méthodes de fichiers dans une racine contrôlée : lire, écriture atomique, suppression (corbeille par défaut), téléversement/téléchargement, archivage/extraction, recherche et opérations par lot ; aucun binaire d'outil externe intégré.",
+    "detail": "docs/DETAIL.fr.md"
+  }
+}
